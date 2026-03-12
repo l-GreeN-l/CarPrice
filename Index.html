@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      body { padding: 20px; background-color: #f8f9fa; }
+      .container { max-width: 700px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+      .progress { display: none; height: 25px; margin-top: 20px; }
+      #resultsContainer { margin-top: 20px; }
+      .car-btn { margin-bottom: 10px; width: 100%; text-align: left; }
+      .warning-box { display: none; margin-top: 20px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h3 class="mb-4">Расчет владения стоимости авто</h3>
+      
+      <div class="mb-3">
+        <label class="form-label">Введите данные автомобиля</label>
+        <textarea class="form-control" id="carInput" rows="5" 
+          placeholder="Введите марку, модель и комплектацию..."></textarea>
+      </div>
+
+      <button id="btnSubmit" class="btn btn-primary w-100" onclick="startCalculation()">
+        Сделать расчет
+      </button>
+
+      <div class="progress" id="progressWrapper">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%">Обработка данных сервером...</div>
+      </div>
+
+      <div id="resultsContainer"></div>
+
+      <div id="warningSection" class="alert alert-warning warning-box">
+        <strong>Заметки по расчету:</strong>
+        <ul id="warningList" class="mb-0 mt-2"></ul>
+      </div>
+
+      <div id="systemError" class="alert alert-danger mt-3" style="display:none;"></div>
+    </div>
+
+    <script>
+      function startCalculation() {
+        let input = document.getElementById('carInput').value;
+        let btn = document.getElementById('btnSubmit');
+        let progress = document.getElementById('progressWrapper');
+        let resultsContainer = document.getElementById('resultsContainer');
+        let warningSection = document.getElementById('warningSection');
+        let warningList = document.getElementById('warningList');
+        let systemError = document.getElementById('systemError');
+
+        // Сброс интерфейса перед запуском
+        btn.disabled = true;
+        progress.style.display = 'flex';
+        systemError.style.display = 'none';
+        warningSection.style.display = 'none';
+        resultsContainer.innerHTML = '';
+        warningList.innerHTML = '';
+
+        // Отправка данных на сервер (валидация теперь только внутри твоей функции GAS)
+        google.script.run
+          .withSuccessHandler(function(response) {
+            btn.disabled = false;
+            progress.style.display = 'none';
+            
+            if (response.success) {
+              // Вывод кнопок с ссылками
+              if (response.data && response.data.length > 0) {
+                response.data.forEach(item => {
+                  let a = document.createElement('a');
+                  a.href = item.url;
+                  a.target = "_blank";
+                  a.className = "btn btn-outline-success car-btn";
+                  a.innerHTML = `✅ Открыть расчет: <strong>${item.name}</strong>`;
+                  resultsContainer.appendChild(a);
+                });
+              }
+
+              // Вывод твоих сообщений об ошибках парсинга
+              if (response.errors && response.errors.length > 0) {
+                response.errors.forEach(err => {
+                  let li = document.createElement('li');
+                  li.innerText = err;
+                  warningList.appendChild(li);
+                });
+                warningSection.style.display = 'block';
+              }
+            } else {
+              systemError.innerText = "Ошибка сервера: " + (response.systemError || "Неизвестная ошибка");
+              systemError.style.display = 'block';
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            progress.style.display = 'none';
+            systemError.innerText = "Критический сбой GAS: " + err;
+            systemError.style.display = 'block';
+          })
+          .processCarData(input);
+      }
+    </script>
+  </body>
+</html>
